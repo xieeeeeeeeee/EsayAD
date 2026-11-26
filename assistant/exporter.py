@@ -11,6 +11,7 @@ import sys
 import uuid
 
 from .catalog import normalize_id, save_json
+from .regions import flatten_region
 
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(ROOT / 'vendor' / 'jlc2ad'))
@@ -109,8 +110,14 @@ def validate_shapes(data: dict) -> list[str]:
                     continue
                 if len(fields) < 5 or fields[4] != 'solid' or int(fields[1]) not in LAYER_MAP:
                     raise ConversionError('暂不支持该区域或挖空类型')
-                if re.search(r'[A-Za-z]', re.sub(r'[MLZ]', '', fields[3])):
-                    raise ConversionError('暂不支持曲线区域')
+                try:
+                    flatten_region(fields[3])
+                except ValueError as exc:
+                    raise ConversionError(str(exc)) from exc
+                if 'A' in fields[3]:
+                    warning = '曲线区域已转换为闭合多边形，弧线离散误差不超过 0.001 mm（另有坐标取整）'
+                    if warning not in warnings:
+                        warnings.append(warning)
             if kind == 'PAD':
                 if len(fields) < 16 or fields[1] not in {'RECT', 'ELLIPSE', 'OVAL'}:
                     raise ConversionError('初版暂不支持自定义多边形焊盘')
@@ -144,10 +151,8 @@ class Exporter:
         for shape in data['dataStr']['dataStr']['shape']:
             fields = shape.split('~')
             if fields[0] == 'SOLIDREGION' and fields[4] == 'solid':
-                numbers = [float(n) for n in re.findall(r'-?\d+(?:\.\d+)?', fields[3])]
-                if len(numbers) < 6 or len(numbers) % 2:
-                    raise ConversionError('区域顶点数据不完整')
-                points = [(round((x - ox) * 100000), -round((y - oy) * 100000)) for x, y in zip(numbers[::2], numbers[1::2])]
+                vertices = flatten_region(fields[3])
+                points = [(round((x - ox) * 100000), -round((y - oy) * 100000)) for x, y in vertices]
                 if points[0] != points[-1]:
                     points.append(points[0])
                 footprint.regions.append(Region(points=points, layer=LAYER_MAP[int(fields[1])]))
