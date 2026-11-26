@@ -6,12 +6,14 @@ import io
 import json
 import math
 import re
+import struct
 from pathlib import Path
 import sys
 import uuid
 
 from .catalog import normalize_id, save_json
 from .regions import flatten_region
+from .pad_shapes import native_oval
 
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(ROOT / 'vendor' / 'jlc2ad'))
@@ -29,12 +31,34 @@ class ConversionError(RuntimeError):
 
 class SourceWriter(SchLibWriter):
     def _build_component_data(self, sym, storage_name):
-        data = super()._build_component_data(sym, storage_name)
+        original = super()._build_component_data(sym, storage_name)
+        blocks, offset = [], 0
+        while offset < len(original):
+            header = struct.unpack_from('<I', original, offset)[0]
+            size = header & 0xFFFFFF
+            block = original[offset:offset+4+size]
+            payload = block[4:]
+            if header >> 24 or not any(payload.startswith(b'|RECORD='+kind+b'|') for kind in (b'45',b'46',b'48')):
+                blocks.append(block)
+            offset += 4+size
         for name, value in [('Source URL', sym.source_url), ('Library Source', 'JLCEDA/EasyEDA Official Library'),
                             ('JLCEDA', 'https://lceda.cn/'), ('EasyEDA', 'https://easyeda.com/')]:
-            data += _write_cstring_param_block({'RECORD': '41', 'OwnerIndex': '0', 'OwnerPartId': '-1',
-                                                'FontID': '2', 'IsHidden': 'T', 'Name': name, 'Text': value})
-        return data
+            blocks.append(_write_cstring_param_block({'RECORD': '41', 'OwnerIndex': '0', 'OwnerPartId': '-1',
+                                                'FontID': '2', 'IsHidden': 'T', 'Name': name, 'Text': value}))
+        # A model must be owned by an implementation list (44), not by an
+        # unrelated graphic/parameter. Both 46 and 48 belong to model 45.
+        list_index = len(blocks)
+        blocks.append(_write_cstring_param_block({'RECORD':'44', 'OwnerIndex':'0'}))
+        model_index = len(blocks)
+        blocks.append(_write_cstring_param_block({'RECORD':'45', 'OwnerIndex':str(list_index),
+            'IndexInSheet':'-1', 'ModelName':sym.package, 'ModelType':'PCBLIB',
+            'DatafileCount':'1', 'ModelDatafile0':sym.footprint_library,
+            'ModelDatafileEntity0':sym.package, 'ModelDatafileKind0':'PCBLib',
+            'IsCurrent':'T', 'IntegratedModel':'F', 'DatabaseModel':'F',
+            'UniqueID':uuid.uuid4().hex[:8].upper()}))
+        for kind in ('46','48'):
+            blocks.append(_write_cstring_param_block({'RECORD':kind,'OwnerIndex':str(model_index)}))
+        return b''.join(blocks)
 
 
 @dataclass
@@ -59,6 +83,13 @@ def normalize_component(lcsc: str, raw: dict) -> dict:
         raise ConversionError('暂不支持该版本封装数据')
     if not isinstance(sch.get('shape'), list) or not isinstance(package['dataStr'].get('shape'), list):
         raise ConversionError('模型图元列表缺失')
+    package = copy.deepcopy(package)
+    for index, shape in enumerate(package['dataStr']['shape']):
+        if shape.startswith('PAD~POLYGON~'):
+            try:
+                package['dataStr']['shape'][index] = '~'.join(native_oval(shape.split('~')))
+            except ValueError as exc:
+                raise ConversionError(str(exc)) from exc
     sch = copy.deepcopy(sch)
     for index, shape in enumerate(sch['shape']):
         if not shape.startswith('P~'):
@@ -142,6 +173,8 @@ class Exporter:
         lcsc = normalize_id(lcsc)
         data = normalize_component(lcsc, raw)
         warnings = validate_shapes(data)
+        if any(s.startswith('PAD~POLYGON~') for s in raw['packageDetail']['dataStr']['shape']):
+            warnings.append('多边形轮廓已验证并还原为原生椭圆焊盘，轮廓偏差不超过 0.001 mm（另有坐标取整）')
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             symbol = SchematicParser().parse(data)
@@ -185,6 +218,7 @@ class Exporter:
         folder = self.output / lcsc / uuid.uuid4().hex[:12]
         folder.mkdir(parents=True, exist_ok=False)
         schlib, pcblib = folder / f'{lcsc}.SchLib', folder / f'{lcsc}.PcbLib'
+        symbol.footprint_library = str(pcblib.resolve())
         SourceWriter().write(str(schlib), [symbol])
         PcbLibWriter().write(str(pcblib), [footprint])
         import olefile

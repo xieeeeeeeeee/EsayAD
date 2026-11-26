@@ -13,7 +13,7 @@ SOFT = '#E1F0EC'
 TABLE = '#E8F3EF'
 BLUE = '#5FA8C7'
 WARM = '#F0C36A'
-VERSION = '0.3.1'
+VERSION = '0.4.0'
 
 
 def build_ui(app):
@@ -70,9 +70,10 @@ def build_ui(app):
         for xy in ((offset, 2, offset, 6), (offset, 22, offset, 26), (2, offset, 6, offset), (22, offset, 26, offset)):
             mark.create_line(*xy, fill=ACCENT, width=2)
     tk.Label(header, text='立创元件助手', font=('Microsoft YaHei UI', 13, 'bold'), fg=INK, bg=BG).pack(side='left')
-    tk.Label(header, text='AD24  /  ' + VERSION, font=('Segoe UI', 9), fg=MUTED, bg=BG).pack(side='left', padx=10)
+    tk.Label(header, text='AD20+  /  ' + VERSION, font=('Segoe UI', 9), fg=MUTED, bg=BG).pack(side='left', padx=10)
     menu = tk.Menu(app, tearoff=False, font=('Microsoft YaHei UI', 10), bg='white', fg=INK)
     menu.add_command(label='设置 AD 路径', command=app.configure_ad)
+    menu.add_command(label='AD 版本与兼容信息', command=app.compatibility_info)
     menu.add_command(label='解除导入等待…', command=app.reset_ad_wait)
     menu.add_separator()
     menu.add_command(label='查看日志', command=lambda: show_log(app))
@@ -132,7 +133,7 @@ def build_ui(app):
         canvas.pack(fill='x')
         app.canvases.append(canvas)
         canvas.bind('<Configure>', lambda _, a=app: redraw(a))
-    app.status = tk.StringVar(value='就绪 · AD 导入仍待实际验证')
+    app.status = tk.StringVar(value='就绪 · 符号与封装配套导入')
     status = ttk.Label(body, textvariable=app.status, style='Muted.TLabel', font=('Microsoft YaHei UI', 8), anchor='w')
     status.grid(row=7, column=0, sticky='ew', pady=(7, 4))
     # Labels stay single-line so long errors cannot push the actions off-screen;

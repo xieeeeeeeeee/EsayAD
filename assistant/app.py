@@ -14,6 +14,7 @@ from .exporter import Exporter
 from .bridge import Bridge, read_receipt
 from .workflow import Selection
 from .compact_ui import INK, ACCENT, BLUE, WARM
+from .installations import load_altium, save_altium, file_version
 
 
 class App(tk.Tk):
@@ -23,7 +24,7 @@ class App(tk.Tk):
         self.data = root / 'data'
         self.catalog = Catalog(self.data / 'cache')
         self.exporter = Exporter(self.data / 'libraries')
-        self.bridge = Bridge(self.data)
+        self.bridge = Bridge(self.data, load_altium(self.data / 'settings.json'))
         self.selection = Selection()
         self.events = queue.Queue()
         self.results = []
@@ -253,8 +254,16 @@ class App(tk.Tk):
     def configure_ad(self):
         path = filedialog.askopenfilename(title='选择 AD 的 X2.EXE', initialdir=str(self.bridge.altium.parent), filetypes=[('Altium Designer', 'X2.EXE')])
         if path:
-            self.bridge.altium = Path(path)
-            self.note('AD 路径：' + path)
+            try:
+                save_altium(self.data / 'settings.json', Path(path))
+                self.bridge.altium = Path(path)
+                self.note('已保存 AD 路径：' + path)
+            except ValueError as exc:
+                self.note(str(exc))
+
+    def compatibility_info(self):
+        version=file_version(self.bridge.altium) or '未识别'
+        messagebox.showinfo('AD 兼容信息', f'当前程序：{self.bridge.altium}\n版本：{version}\n\n适配目标：AD20–AD26.12.2\n采用传统 DelphiScript 与文件库接口，不绑定新版 SDK DLL。\n\nAD24.0.1.36 已验证符号放置、模型关联与 PCB 库焊盘读取。\n其他主版本未实测，不宣称全部版本已通过。\n更换版本可在“更多 → 设置 AD 路径”选择 X2.EXE，选择会保存。')
 
     def reset_ad_wait(self):
         if messagebox.askyesno('确认 AD 脚本已停止', '请先在 AD 关闭错误提示，并执行“运行 → 停止”。\n\n确认 AD 脚本已经停止后，才可解除助手等待。\n现在是否已经停止？'):
