@@ -18,7 +18,7 @@ from .workflow import Selection
 class App(tk.Tk):
     def __init__(self, root: Path):
         super().__init__()
-        self.title('立创元件助手 · AD24')
+        self.title('立创元件助手 · AD24 · 0.2.1')
         self.geometry('1120x800')
         self.minsize(940, 720)
         self.configure(bg='#F3F5F8')

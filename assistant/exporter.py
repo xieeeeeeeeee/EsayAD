@@ -1,8 +1,10 @@
 """Strict adapter around the pinned MIT converter; create new libraries only."""
 import contextlib
+import copy
 from dataclasses import dataclass
 import io
 import json
+import math
 import re
 from pathlib import Path
 import sys
@@ -56,6 +58,24 @@ def normalize_component(lcsc: str, raw: dict) -> dict:
         raise ConversionError('暂不支持该版本封装数据')
     if not isinstance(sch.get('shape'), list) or not isinstance(package['dataStr'].get('shape'), list):
         raise ConversionError('模型图元列表缺失')
+    sch = copy.deepcopy(sch)
+    for index, shape in enumerate(sch['shape']):
+        if not shape.startswith('P~'):
+            continue
+        sections = shape.split('^^')
+        header = sections[0].split('~')
+        if len(header) < 7:
+            raise ConversionError('引脚头数据不完整')
+        # The header carries the SPICE ordinal. Section 4 carries the physical
+        # pin designator printed on the symbol and matched to footprint pads.
+        if len(sections) > 4:
+            number_fields = sections[4].split('~')
+            if len(number_fields) > 4 and number_fields[4].strip():
+                header[3] = number_fields[4].strip()
+        if not header[6].strip():
+            header[6] = '0'
+        sections[0] = '~'.join(header)
+        sch['shape'][index] = '^^'.join(sections)
     para = sch.get('head', {}).get('c_para', {})
     if sch.get('subparts') or sch.get('head', {}).get('subpart') or any(s.startswith('LIB~') for s in sch['shape']):
         raise ConversionError('初版暂不支持多单元符号')
@@ -94,7 +114,13 @@ def validate_shapes(data: dict) -> list[str]:
             if kind == 'PAD':
                 if len(fields) < 16 or fields[1] not in {'RECT', 'ELLIPSE', 'OVAL'}:
                     raise ConversionError('初版暂不支持自定义多边形焊盘')
-                if len(fields) > 13 and fields[13] not in ('', '0'):
+                try:
+                    hole_length = float(fields[13].strip() or '0')
+                except ValueError as exc:
+                    raise ConversionError('焊盘孔长数据无效，已阻止导出') from exc
+                if not math.isfinite(hole_length) or hole_length < 0:
+                    raise ConversionError('焊盘孔长数据无效，已阻止导出')
+                if hole_length > 0 or fields[14].strip():
                     raise ConversionError('初版暂不支持槽孔焊盘')
                 if fields[6] not in ('1', '2', '11'):
                     raise ConversionError('暂不支持该焊盘层')

@@ -104,6 +104,49 @@ class ExportTests(unittest.TestCase):
         self.assertNotEqual(first.schlib, second.schlib)
         self.assertEqual(first.schlib.read_bytes(), before)
 
+    def test_ams1117_decimal_zero_is_not_a_slot(self):
+        raw = json.loads((FIXTURES / 'C6186.json').read_text(encoding='utf-8'))
+        result = self.exporter.export('C6186', raw)
+        self.assertEqual(result.pin_numbers, ['1', '2', '3', '4'])
+        self.assertEqual(result.pad_numbers, ['1', '2', '3', '4'])
+        self.assertTrue(all(p.hole_size == 0 for p in result.footprint.pads))
+        self.assertTrue(result.schlib.is_file())
+        self.assertTrue(result.pcblib.is_file())
+
+    def test_numeric_zero_hole_lengths_export_but_real_slots_are_rejected(self):
+        original = copy.deepcopy(self.raw)
+        for length in ('0', '0.0000', '0.0', '', '0e0'):
+            with self.subTest(length=length):
+                raw = copy.deepcopy(original)
+                for i, shape in enumerate(raw['packageDetail']['dataStr']['shape']):
+                    if shape.startswith('PAD~'):
+                        fields = shape.split('~')
+                        fields[13] = length
+                        raw['packageDetail']['dataStr']['shape'][i] = '~'.join(fields)
+                self.assertTrue(self.exporter.export('C25804', raw).pcblib.is_file())
+        for length, points in (('3.0', ''), ('0.0000', '1 2 3 4'), ('NaN', ''), ('unknown', '')):
+            with self.subTest(length=length, points=points):
+                raw = copy.deepcopy(original)
+                shapes = raw['packageDetail']['dataStr']['shape']
+                index = next(i for i, shape in enumerate(shapes) if shape.startswith('PAD~'))
+                fields = shapes[index].split('~')
+                fields[13], fields[14] = length, points
+                shapes[index] = '~'.join(fields)
+                with self.assertRaises(ConversionError):
+                    self.exporter.export('C25804', raw)
+
+    def test_ams1117_uses_physical_pin_numbers_and_defaults_blank_rotation_to_zero(self):
+        raw = json.loads((FIXTURES / 'C12087.json').read_text(encoding='utf-8-sig'))
+        original = copy.deepcopy(raw)
+        result = self.exporter.export('C12087', raw)
+        pins = {p.name: p for p in result.symbol.pins}
+        self.assertEqual(pins['In'].number, '3')
+        self.assertEqual(pins['Out'].number, '2')
+        self.assertEqual(pins['GND'].number, '1')
+        self.assertEqual(pins['TAB'].number, '4')
+        self.assertEqual(pins['TAB'].orientation, 2)
+        self.assertEqual(raw, original)
+
 
 if __name__ == '__main__':
     unittest.main()
