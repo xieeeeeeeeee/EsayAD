@@ -1,8 +1,12 @@
-# EsayAD
+# EsayAD · AD 嘉立创元件库助手
 
-**在 Altium Designer 中快速使用立创元件。**
+**搜索立创元件，把嘉立创EDA / EasyEDA 符号与 PCB 封装导入 Altium Designer。**
 
 EsayAD 是一个 Windows 桌面助手：搜索元件，预览原理图符号与 PCB 封装，生成配套的 Altium 库，再将元件放入原理图。适合希望减少查找、下载和手动整理元件库步骤的 AD 用户。
+
+如果你在找 **AD嘉立创、AD立创元件库、嘉立创转AD、立创转AD、EasyEDA 转 Altium**，EsayAD 提供从立创料号查询到 `.SchLib` / `.PcbLib` 配套导入的工作流程。当前关键词搜索来自嘉立创 JLCPCB 贴片目录，C 料号通过 EasyEDA 模型库精确查询。
+
+**LCSC / JLCPCB / EasyEDA to Altium Designer library importer for Windows.** Search electronic components, preview schematic symbols and PCB footprints, and export paired SchLib / PcbLib libraries. Targets AD20–AD26.12.2 integration; tested on AD24.
 
 [下载程序](https://github.com/xieeeeeeeeee/EsayAD/releases) · [反馈问题](https://github.com/xieeeeeeeeee/EsayAD/issues) · [验证记录](docs/verification.md)
 
