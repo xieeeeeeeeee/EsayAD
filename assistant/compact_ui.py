@@ -17,7 +17,7 @@ VERSION = '0.4.0'
 
 
 def build_ui(app):
-    app.title('立创元件助手 · ' + VERSION)
+    app.title('EsayAD · ' + VERSION)
     app.geometry('900x650')
     app.minsize(760, 560)
     app.configure(bg=BG)
@@ -69,7 +69,7 @@ def build_ui(app):
     for offset in (10, 18):
         for xy in ((offset, 2, offset, 6), (offset, 22, offset, 26), (2, offset, 6, offset), (22, offset, 26, offset)):
             mark.create_line(*xy, fill=ACCENT, width=2)
-    tk.Label(header, text='立创元件助手', font=('Microsoft YaHei UI', 13, 'bold'), fg=INK, bg=BG).pack(side='left')
+    tk.Label(header, text='EsayAD', font=('Microsoft YaHei UI', 13, 'bold'), fg=INK, bg=BG).pack(side='left')
     tk.Label(header, text='AD20+  /  ' + VERSION, font=('Segoe UI', 9), fg=MUTED, bg=BG).pack(side='left', padx=10)
     menu = tk.Menu(app, tearoff=False, font=('Microsoft YaHei UI', 10), bg='white', fg=INK)
     menu.add_command(label='设置 AD 路径', command=app.configure_ad)

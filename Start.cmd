@@ -1,5 +1,9 @@
 @echo off
 cd /d "%~dp0"
+if exist "%~dp0EsayAD.exe" (
+  start "" "%~dp0EsayAD.exe"
+  exit /b
+)
 if exist "%~dp0dist\LCSC-AD24-Assistant-0.4.0.exe" (
   start "" "%~dp0dist\LCSC-AD24-Assistant-0.4.0.exe"
   exit /b
