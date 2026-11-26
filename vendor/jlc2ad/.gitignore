@@ -1,0 +1,30 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Local tool/editor state
+.claude/
+artifacts/
+tests/
+opencode.json
+
+# Generated outputs
+smoke_3d/
+*.PcbLib
+*.SchLib
+*.LibPkg
+
+# Local test scripts (keep local, do not commit)
+check*.py
+gen_big_test.py
+gen_tests.py
+
+# Backup/history artifacts
+History/
+*.Zip
+
+# Temp/debug artifacts
+test.txt
+test_desc.bin
+nul

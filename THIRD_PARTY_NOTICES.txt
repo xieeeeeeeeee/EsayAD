@@ -1,0 +1,9 @@
+Converter: https://github.com/NatsumiAi/jlc2ad
+Pinned commit: 7bb2d0f83790430d9aae892ecc2f67755c348b9d
+License: MIT; see vendor/jlc2ad/LICENSE.
+Upstream is unmodified. Our adapter adds strict validation, SOLIDREGION handling and source metadata.
+
+Component model data: JLCEDA/EasyEDA Official Library
+https://lceda.cn/
+https://easyeda.com/
+Model copyright remains with the respective authors/providers; raw source metadata is retained.
