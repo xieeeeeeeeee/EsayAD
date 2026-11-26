@@ -13,15 +13,12 @@ from .catalog import Catalog
 from .exporter import Exporter
 from .bridge import Bridge, read_receipt
 from .workflow import Selection
+from .compact_ui import INK, ACCENT, BLUE, WARM
 
 
 class App(tk.Tk):
     def __init__(self, root: Path):
         super().__init__()
-        self.title('立创元件助手 · AD24 · 0.2.2')
-        self.geometry('1120x800')
-        self.minsize(940, 720)
-        self.configure(bg='#F3F5F8')
         self.root_dir = root
         self.data = root / 'data'
         self.catalog = Catalog(self.data / 'cache')
@@ -35,90 +32,8 @@ class App(tk.Tk):
         self.project = None
         self.last_receipt = None
         self.export_busy = False
-        style = ttk.Style(self)
-        style.theme_use('clam')
-        style.configure('.', font=('Microsoft YaHei UI', 10))
-        style.configure('TFrame', background='#F3F5F8')
-        style.configure('TLabel', background='#F3F5F8', foreground='#24334B')
-        style.configure('TButton', padding=(12, 7))
-        style.configure('Treeview', rowheight=31, background='white', fieldbackground='white')
-        style.configure('Treeview.Heading', font=('Microsoft YaHei UI', 10, 'bold'), padding=7)
-        style.configure('Accent.TButton', background='#165DDE', foreground='white')
-        style.map('Accent.TButton', background=[('active', '#1249AC'), ('disabled', '#AAB8CE')])
-        header = tk.Frame(self, bg='#122B4A', padx=24, pady=10)
-        header.pack(fill='x')
-        tk.Label(header, text='立创元件助手', font=('Microsoft YaHei UI', 21, 'bold'), bg='#122B4A', fg='white').pack(side='left')
-        tk.Label(header, text='搜索  →  预览  →  AD24', bg='#122B4A', fg='#CCDDF2', font=('Microsoft YaHei UI', 11)).pack(side='right')
-        body = ttk.Frame(self, padding=12)
-        body.pack(fill='both', expand=True)
-        ttk.Label(body, text='型号 / 关键词 / 立创 C 料号').pack(anchor='w')
-        search = ttk.Frame(body)
-        search.pack(fill='x', pady=(6, 8))
-        self.entry = ttk.Entry(search, font=('Microsoft YaHei UI', 12))
-        self.entry.pack(side='left', fill='x', expand=True, ipady=7)
-        self.entry.bind('<Return>', lambda _: self.search())
-        self.search_button = ttk.Button(search, text='搜索元件', style='Accent.TButton', command=self.search)
-        self.search_button.pack(side='left', padx=(10, 0))
-        ttk.Button(search, text='设置 AD 路径', command=self.configure_ad).pack(side='left', padx=(8, 0))
-        self.source = tk.StringVar(value='关键词搜索：嘉立创贴片元件目录；C 料号：EasyEDA 官方库精确查询')
-        ttk.Label(body, textvariable=self.source, wraplength=1000).pack(anchor='w', pady=(0, 8))
-        table = ttk.Frame(body)
-        table.pack(fill='both', expand=True)
-        columns = ('lcsc', 'model', 'manufacturer', 'package', 'description')
-        self.table = ttk.Treeview(table, columns=columns, show='headings', selectmode='browse', height=5)
-        for name, title, width in zip(columns, ('立创料号', '厂家型号', '厂家', '封装', '描述'), (100, 200, 180, 130, 320)):
-            self.table.heading(name, text=title)
-            self.table.column(name, width=width, minwidth=70)
-        scroll = ttk.Scrollbar(table, orient='vertical', command=self.table.yview)
-        self.table.configure(yscrollcommand=scroll.set)
-        self.table.pack(side='left', fill='both', expand=True)
-        scroll.pack(side='right', fill='y')
-        self.table.bind('<<TreeviewSelect>>', self.selected)
-        pager = ttk.Frame(body)
-        pager.pack(fill='x', pady=8)
-        self.previous = ttk.Button(pager, text='上一页', command=lambda: self.search(self.page - 1), state='disabled')
-        self.previous.pack(side='left')
-        self.next = ttk.Button(pager, text='下一页', command=lambda: self.search(self.page + 1), state='disabled')
-        self.next.pack(side='left', padx=8)
-        self.summary = tk.StringVar(value='试试 C25804、NE555DR 或 capacitor')
-        ttk.Label(pager, textvariable=self.summary).pack(side='right')
-        self.details = tk.StringVar(value='选中元件后获取符号与封装，并检查引脚编号。')
-        ttk.Label(body, textvariable=self.details, wraplength=1030).pack(anchor='w', pady=(3, 8))
-        previews = ttk.Frame(body)
-        previews.pack(fill='x')
-        self.canvases = []
-        for title in ('原理图符号', 'PCB 封装 · 俯视图'):
-            pane = ttk.Frame(previews)
-            pane.pack(side='left', fill='both', expand=True, padx=(0, 8))
-            ttk.Label(pane, text=title, font=('Microsoft YaHei UI', 10, 'bold')).pack(anchor='w')
-            canvas = tk.Canvas(pane, height=140, bg='white', highlightbackground='#D6DDE8', highlightthickness=1)
-            canvas.pack(fill='x', pady=5)
-            self.canvases.append(canvas)
-        actions = ttk.Frame(body)
-        actions.pack(fill='x', pady=7)
-        self.export_button = ttk.Button(actions, text='生成 AD 库', command=lambda: self.export(False), state='disabled')
-        self.export_button.pack(side='left')
-        self.import_button = ttk.Button(actions, text='导入 AD 并放置', style='Accent.TButton', command=lambda: self.export(True), state='disabled')
-        self.import_button.pack(side='left', padx=8)
-        ttk.Button(actions, text='打开输出目录', command=self.open_output).pack(side='left')
-        ttk.Button(actions, text='商品页面', command=self.open_product).pack(side='left', padx=8)
-        ttk.Button(actions, text='解除导入等待', command=self.reset_ad_wait).pack(side='left')
-        ttk.Button(actions, text='使用说明', command=lambda: os.startfile(str(self.root_dir / 'README.md'))).pack(side='right')
-        self.status = tk.StringVar(value='就绪 · AD 端导入尚待本机联调')
-        ttk.Label(body, textvariable=self.status, wraplength=1030).pack(anchor='w', pady=(2, 5))
-        self.progress = ttk.Progressbar(body, mode='indeterminate')
-        self.progress.pack(fill='x')
-        self.log = tk.Text(body, height=2, wrap='word', font=('Microsoft YaHei UI', 9), bg='#EAF0F7', relief='flat')
-        self.log.pack(fill='x', pady=7)
-        self.log.configure(state='disabled')
-        footer = ttk.Frame(self, padding=(18, 4, 18, 10))
-        footer.pack(fill='x')
-        ttk.Label(footer, text='模型来源：嘉立创EDA/EasyEDA官方库 · 转换后请核对引脚、焊盘与极性', font=('Microsoft YaHei UI', 9)).pack(side='left')
-        link = tk.Label(footer, text='lceda.cn  /  easyeda.com', fg='#165DDE', bg='#F3F5F8', cursor='hand2')
-        link.pack(side='right')
-        link.bind('<Button-1>', lambda _: webbrowser.open('https://lceda.cn/'))
-        self.after(100, self.drain)
-        self.entry.focus_set()
+        from .compact_ui import build_ui
+        build_ui(self)
 
     def note(self, text):
         self.status.set(text)
@@ -151,6 +66,7 @@ class App(tk.Tk):
         self.search_button.configure(state='disabled')
         self.previous.configure(state='disabled')
         self.next.configure(state='disabled')
+        self.preview_geometry = None
         self.details.set('正在搜索…')
         for canvas in self.canvases:
             canvas.delete('all')
@@ -170,6 +86,7 @@ class App(tk.Tk):
         self.disable_import()
         for canvas in self.canvases:
             canvas.delete('all')
+        self.preview_geometry = None
         self.details.set(f'{part.lcsc} · {part.model} · 正在获取模型…')
         def load():
             raw = self.catalog.component(part.lcsc)
@@ -278,13 +195,14 @@ class App(tk.Tk):
         self.worker(self.selection.generation, 'export', lambda: (self.exporter.export(lcsc, raw), do_import))
 
     def draw(self, symbol, footprint):
+        self.preview_geometry = (symbol, footprint)
         for canvas, shapes in zip(self.canvases, (self.symbol_shapes(symbol), self.footprint_shapes(footprint))):
             canvas.delete('all')
             for method, coords, options in shapes:
                 getattr(canvas, method)(*coords, **options)
             box = canvas.bbox('all')
             if box:
-                width, height = max(canvas.winfo_width(), 350), canvas.winfo_height()
+                width, height = max(canvas.winfo_width(), 100), canvas.winfo_height()
                 factor = min((width - 70) / max(box[2]-box[0], 1), (height-50) / max(box[3]-box[1], 1))
                 canvas.scale('all', 0, 0, factor, factor)
                 box = canvas.bbox('all')
@@ -293,31 +211,31 @@ class App(tk.Tk):
     def symbol_shapes(self, symbol):
         shapes = []
         for line in symbol.lines:
-            shapes.append(('create_line', [line.x1, -line.y1, line.x2, -line.y2], {'fill': '#8E263D', 'width': 2}))
+            shapes.append(('create_line', [line.x1, -line.y1, line.x2, -line.y2], {'fill': INK, 'width': 2}))
         for r in symbol.rects:
-            shapes.append(('create_rectangle', [r.x1, -r.y1, r.x2, -r.y2], {'outline': '#8E263D', 'fill': '#FFF2C8', 'width': 2}))
+            shapes.append(('create_rectangle', [r.x1, -r.y1, r.x2, -r.y2], {'outline': INK, 'fill': '#FFF4DC', 'width': 2}))
         for arc in symbol.arcs:
-            shapes.append(('create_arc', [arc.cx-arc.radius, -arc.cy-arc.radius, arc.cx+arc.radius, -arc.cy+arc.radius], {'start': arc.start_angle, 'extent': (arc.end_angle-arc.start_angle) or 359.9, 'style': 'arc', 'outline': '#8E263D'}))
+            shapes.append(('create_arc', [arc.cx-arc.radius, -arc.cy-arc.radius, arc.cx+arc.radius, -arc.cy+arc.radius], {'start': arc.start_angle, 'extent': (arc.end_angle-arc.start_angle) or 359.9, 'style': 'arc', 'outline': INK}))
         for pin in symbol.pins:
             dx, dy = ((1, 0), (0, -1), (-1, 0), (0, 1))[pin.orientation]
             x, y = pin.x, -pin.y
-            shapes.append(('create_line', [x, y, x+dx*pin.length, y+dy*pin.length], {'fill': '#165DDE', 'width': 2}))
-            shapes.append(('create_text', [x, y-4], {'text': pin.number, 'fill': '#24334B', 'font': ('Segoe UI', 8)}))
+            shapes.append(('create_line', [x, y, x+dx*pin.length, y+dy*pin.length], {'fill': ACCENT, 'width': 2}))
+            shapes.append(('create_text', [x, y-4], {'text': pin.number, 'fill': INK, 'font': ('Segoe UI', 8)}))
         return shapes
 
     def footprint_shapes(self, footprint):
         shapes = []
         scale = 100000
         for track in footprint.tracks:
-            shapes.append(('create_line', [track.x1/scale, -track.y1/scale, track.x2/scale, -track.y2/scale], {'fill': '#76879F', 'width': 1}))
+            shapes.append(('create_line', [track.x1/scale, -track.y1/scale, track.x2/scale, -track.y2/scale], {'fill': BLUE, 'width': 1}))
         for pad in footprint.pads:
             angle = math.radians(pad.rotation)
             points = []
             for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
                 x, y = dx*pad.size_x/2, dy*pad.size_y/2
                 points += [(pad.x+x*math.cos(angle)-y*math.sin(angle))/scale, -(pad.y+x*math.sin(angle)+y*math.cos(angle))/scale]
-            shapes.append(('create_polygon', points, {'fill': '#CC8B39', 'outline': '#855824'}))
-            shapes.append(('create_text', [pad.x/scale, -pad.y/scale], {'text': pad.name, 'fill': '#122B4A', 'font': ('Segoe UI', 8)}))
+            shapes.append(('create_polygon', points, {'fill': WARM, 'outline': ACCENT}))
+            shapes.append(('create_text', [pad.x/scale, -pad.y/scale], {'text': pad.name, 'fill': INK, 'font': ('Segoe UI', 8)}))
         return shapes
 
     def open_output(self):
